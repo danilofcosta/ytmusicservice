@@ -455,17 +455,10 @@ Future<List<AlbumDetailed>> getArtistAlbums(String artistId) async {
     ];
   }
 
+Future<void>getArtist(String artistId) async {
+  print(artistId);
+
+
  }
-
-
-
- void main() async {
-  final ytService = YTMusicService();
-  await ytService.init(geo: 'BR', lang: 'pt');
- var d = await ytService.getArtistAlbums( 'UCt8Ihy3hj9uHGXKTpO214AQ');
-//  print(d.first.);
- 
- 
-
-
 }
+
