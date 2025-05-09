@@ -487,3 +487,9 @@ class HomeSection {
         contents = map['contents'] as List<dynamic>;
 }
 
+class Thumb {
+  final String url;
+  Thumb({
+    required this.url,   
+  });
+}

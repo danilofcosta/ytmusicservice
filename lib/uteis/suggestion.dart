@@ -1,28 +1,30 @@
 // suggestion.dart
 
+import 'package:ytmusicservice/uteis/types.dart';
+
 class Suggestion {
   final String type;
-  final String title;
+  final String name;
   final String? artist;
-  final String? thumb;
+  final List<Thumb>? thumbnails;
   final String? videoId;
   final String? artistId;
 
   Suggestion({
     required this.type,
-    required this.title,
+    required this.name,
     this.artist,
-    this.thumb,
+    this.thumbnails,
     this.videoId,
     this.artistId,
   });
 
   factory Suggestion.empty() {
-    return Suggestion(type: 'TEXT', title: 'Sem resultados');
+    return Suggestion(type: 'TEXT', name: 'Sem resultados');
   }
 
   @override
   String toString() {
-    return 'Suggestion(type: $type, title: $title, artist: $artist, videoId: $videoId)';
+    return 'Suggestion(type: $type, title: $name, artist: $artist, videoId: $videoId)';
   }
 }

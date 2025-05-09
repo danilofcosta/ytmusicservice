@@ -1,6 +1,8 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
+import 'package:ytmusicservice/tes.dart';
 import 'package:ytmusicservice/uteis/album_parse.dart';
+import 'package:ytmusicservice/uteis/artist_parse.dart';
 import 'package:ytmusicservice/uteis/list_sugest.dart';
 import 'package:ytmusicservice/uteis/playlist_parser.dart';
 import 'package:ytmusicservice/uteis/search_parser.dart';
@@ -8,10 +10,11 @@ import 'package:ytmusicservice/uteis/suggestion.dart';
 import 'package:ytmusicservice/uteis/traverse.dart';
 import 'package:ytmusicservice/uteis/types.dart';
 import 'package:ytmusicservice/uteis/song_parser.dart';
+
 //import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+
 class YTMusicService {
   static final YTMusicService _instance = YTMusicService._internal();
-// final yt = YoutubeExplode();
 
   factory YTMusicService() {
     return _instance;
@@ -71,12 +74,11 @@ class YTMusicService {
 
   /// Initializes the YTMusicService instance with provided cookies, geolocation, and language.
   Future<YTMusicService> init({
-
     String? cookies,
     String? geo,
     String? lang,
   }) async {
-      print('init class');
+    print('init class');
     if (hasInitialized) {
       return this;
     }
@@ -245,7 +247,8 @@ class YTMusicService {
     final uri = Uri.parse(url);
     return await cookieJar.loadForRequest(uri);
   }
-//------------------------------------------------------------------------------------------------
+
+  //------------------------------------------------------------------------------------------------
   Future<List<SearchResult>> searchplaylist(String query) async {
     final searchData = await constructRequest(
       "search",
@@ -258,99 +261,212 @@ class YTMusicService {
         .cast<SearchResult>()
         .toList();
   }
-  Future<PlaylistFull> getPlaylist(String playlistId) async {
+
+  Future<PlaylistFullSongas> getPlaylist(String playlistId) async {
     if (playlistId.startsWith("PL") || playlistId.startsWith("RD")) {
       playlistId = "VL$playlistId";
     }
 
-    final data =
-        await constructRequest("browse", body: {"browseId": playlistId});
+    final playlistData = await constructRequest(
+      "browse",
+      body: {"browseId": playlistId},
+    );
 
-    return PlaylistParser.parse(data, playlistId);
+    final songs = traverseList(playlistData, [
+      "musicPlaylistShelfRenderer",
+      "musicResponsiveListItemRenderer",
+    ]);
+    dynamic continuation = traverse(playlistData, ["continuation"]);
+    if (continuation is List) {
+      continuation = continuation[0];
+    }
+    while (continuation is! List) {
+      final songsData = await constructRequest(
+        "browse",
+        query: {"continuation": continuation},
+      );
+      songs.addAll(
+        traverseList(songsData, ["musicResponsiveListItemRenderer"]),
+      );
+      continuation = traverse(songsData, ["continuation"]);
+    }
+    List<Future<VideoDetailed>> futures =
+        songs.map((song) => parsePlaylistVideoAsync(song)).toList();
+    List<VideoDetailed> songsList = await Future.wait(futures);
+    return parsePlaylistFullSongas(playlistData, songsList);
   }
-Future<List<dynamic>> searchSongs(String query) async {
+
+  Future<List<ArtistDetailed>> searchArtists(String query) async {
     final searchData = await constructRequest(
       "search",
       body: {
         "query": query,
-        "params": "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D"
+        "params": "Eg-KAQwIABAAGAAgASgAMABqChAEEAMQCRAFEAo%3D",
       },
     );
 
-    final results =
-        traverseList(searchData, ["musicResponsiveListItemRenderer"]);
+    return traverseList(searchData, [
+      "musicResponsiveListItemRenderer",
+    ]).map(ArtistParser.parseSearchResult).toList();
+  }
+
+  Future<List<dynamic>> searchSongs(String query) async {
+    final searchData = await constructRequest(
+      "search",
+      body: {
+        "query": query,
+        "params": "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D",
+      },
+    );
+
+    final results = traverseList(searchData, [
+      "musicResponsiveListItemRenderer",
+    ]);
     final mappedResults = results.map(SongParser.parseSearchResult).toList();
 
     return mappedResults;
-
-    
   }
 
-Future<List<AlbumDetailed>> searchAlbums(String query) async {
+  Future<List<AlbumDetailed>> searchAlbums(String query) async {
     final searchData = await constructRequest(
       "search",
       body: {
         "query": query,
-        "params": "Eg-KAQwIABAAGAEgACgAMABqChAEEAMQCRAFEAo%3D"
+        "params": "Eg-KAQwIABAAGAEgACgAMABqChAEEAMQCRAFEAo%3D",
       },
     );
 
-    return traverseList(searchData, ["musicResponsiveListItemRenderer"])
-        .map(AlbumParser.parseSearchResult)
+    return traverseList(searchData, [
+      "musicResponsiveListItemRenderer",
+    ]).map(AlbumParser.parseSearchResult).toList();
+  }
+
+  Future<List<SongSugest>> getSongNext(String videoId) async {
+    if (!RegExp(r"^[a-zA-Z0-9-_]{11}$").hasMatch(videoId)) {
+      throw Exception("Invalid videoId");
+    }
+
+    // Primeiro: pega a playlistId
+    final data = await constructRequest("next", body: {"videoId": videoId});
+
+    final playlistId =
+        traverseString(data, [
+          "contents",
+          "singleColumnWatchNextResults",
+          "playlist",
+          "playlist",
+          "playlistId",
+        ]) ??
+        traverseString(data, ["watchPlaylistEndpoint", "playlistId"]);
+
+    if (playlistId == null || playlistId.isEmpty) {
+      throw Exception('Radio playlist not found for videoId: $videoId');
+    }
+
+    // Segundo: carrega a playlist
+
+    final playlistData = await constructRequest(
+      "next",
+      body: {"videoId": videoId, "playlistId": playlistId},
+    );
+    final songs = traverseList(playlistData, ["playlistPanelVideoRenderer"]);
+    List<SongSugest> listSongs =
+        songs.map<SongSugest>((song) => SongSugest.fromJson(song)).toList();
+    return listSongs;
+  }
+
+  Future<List<SongDetailed>> getArtistSongs(String artistId) async {
+    final artistData = await constructRequest(
+      "browse",
+      body: {"browseId": artistId},
+    );
+    final browseToken = traverse(artistData, [
+      "musicShelfRenderer",
+      "title",
+      "browseId",
+    ]);
+
+    if (browseToken is List) {
+      return [];
+    }
+
+    final songsData = await constructRequest(
+      "browse",
+      body: {"browseId": browseToken},
+    );
+    final continueToken = traverse(songsData, ["continuation"]);
+    late final Map moreSongsData;
+
+    if (continueToken is String) {
+      moreSongsData = await constructRequest(
+        "browse",
+        query: {"continuation": continueToken},
+      );
+    } else {
+      moreSongsData = {};
+    }
+
+    return [
+          ...traverseList(songsData, ["musicResponsiveListItemRenderer"]),
+          ...traverseList(moreSongsData, ["musicResponsiveListItemRenderer"]),
+        ]
+        .map(
+          (s) => SongParser.parseArtistSong(
+            s,
+            ArtistBasic(
+              artistId: artistId,
+              name:
+                  traverseString(artistData, ["header", "title", "text"]) ?? '',
+            ),
+          ),
+        )
         .toList();
   }
-Future<dynamic> getSongNext(String videoId) async {
-  if (!RegExp(r"^[a-zA-Z0-9-_]{11}$").hasMatch(videoId)) {
-    throw Exception("Invalid videoId");
-  }
 
-  // Primeiro: pega a playlistId
-  final data = await constructRequest("next", body: {
-    "videoId": videoId,
-  });
+  Future<AlbumFull> getAlbum(String albumId) async {
+    final data = await constructRequest("browse", body: {"browseId": albumId});
 
-  final playlistId = traverseString(data, [
-    "contents",
-    "singleColumnWatchNextResults",
-    "playlist",
-    "playlist",
-    "playlistId",
-  ]) ?? traverseString(data, ["watchPlaylistEndpoint", "playlistId"]);
+    final album = AlbumParser.parse(data, albumId);
 
-  if (playlistId == null || playlistId.isEmpty) {
-    throw Exception('Radio playlist not found for videoId: $videoId');
-  }
-
-  // Segundo: carrega a playlist
-  final playlistData = await constructRequest("next", body: {
-    "videoId": videoId,
-    "playlistId": playlistId,
-  });
- final songs = traverseList(
-      playlistData,
-      ["playlistPanelVideoRenderer",],
+    final artistSongs = await getArtistSongs(album.artist.artistId ?? '');
+    final filteredSongs = artistSongs.where(
+      (song) =>
+          album.songs
+              .where(
+                (item) =>
+                    '${song.album?.name}-${song.name}' ==
+                    '${item.album?.name}-${item.name}',
+              )
+              .isNotEmpty,
     );
-  List<SongSugest> listSongs = songs
-      .map<SongSugest>((song) => SongSugest.fromJson(song))
-      .toList();
- return listSongs;
 
-  
-}
+    final songsThatArentInArtist = album.songs.where(
+      (item) =>
+          artistSongs
+              .where(
+                (song) =>
+                    '${song.album?.name}-${song.name}' ==
+                    '${item.album?.name}-${item.name}',
+              )
+              .isEmpty,
+    );
 
-Future<SongFull> getSong(String videoId) async {
+    return album..songs = [...filteredSongs, ...songsThatArentInArtist];
+  }
+
+  Future<SongFull> getSong(String videoId) async {
     if (!RegExp(r"^[a-zA-Z0-9-_]{11}$").hasMatch(videoId)) {
       throw Exception("Invalid videoId");
     }
 
     final data = await constructRequest("player", body: {"videoId": videoId});
 
-
-    
-
-    //final manifest = await yt.videos.streams.getManifest(videoId,requireWatchPage: false);
-   // final audios = manifest.audioOnly;
-    final audios =null;
+    final manifest = await yt.videos.streams.getManifest(
+      videoId,
+      requireWatchPage: false,
+    );
+    final audios = manifest.audioOnly;
+    //final audios = null;
 
     final song = SongParser.parse(data, adaptiveFormats: audios);
     if (song.videoId != videoId) {
@@ -358,77 +474,131 @@ Future<SongFull> getSong(String videoId) async {
     }
     return song;
   }
-Future<List<Suggestion>> getSearchSuggestions(String query) async {
-  final response = await constructRequest(
-    'music/get_search_suggestions',
-    body: {
-      "input": query,
-      "params": "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D",
-    },
-  );
 
-  final suggestionsRaw = traverse(response, ['searchSuggestionsSectionRenderer', 'contents']);
-  List<Suggestion> suggestions = [];
+  Future<List<Suggestion>> getSearchSuggestions(String query) async {
+    final response = await constructRequest(
+      'music/get_search_suggestions',
+      body: {
+        "input": query,
+        "params": "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D",
+      },
+    );
 
-  for (var item in suggestionsRaw) {
-    // Verifica se é sugestão de texto
-    final textSuggestion = traverse(item, ['searchSuggestionRenderer', 'searchEndpoint', 'query']);
-    if (textSuggestion != null && textSuggestion.isNotEmpty) {
-      suggestions.add(Suggestion(
-        type: 'TEXT',
-        title: textSuggestion.toString(),
-      ));
-      continue;
+    final suggestionsRaw = traverse(response, [
+      'searchSuggestionsSectionRenderer',
+      'contents',
+    ]);
+    List<Suggestion> suggestions = [];
+
+    for (var item in suggestionsRaw) {
+      // Verifica se é sugestão de texto
+      final textSuggestion = traverse(item, [
+        'searchSuggestionRenderer',
+        'searchEndpoint',
+        'query',
+      ]);
+      if (textSuggestion != null && textSuggestion.isNotEmpty) {
+        suggestions.add(
+          Suggestion(type: 'TEXT', name: textSuggestion.toString()),
+        );
+        continue;
+      }
+
+      // Verifica se é música
+      final videoId = traverse(item, [
+        'musicResponsiveListItemRenderer',
+        'navigationEndpoint',
+        'watchEndpoint',
+        'videoId',
+      ]);
+      if (videoId != null && videoId.isNotEmpty) {
+        final thumb = traverse(item, [
+          'musicResponsiveListItemRenderer',
+          'thumbnail',
+          'musicThumbnailRenderer',
+          'thumbnail',
+          'url',
+        ]);
+        final title = traverse(item, [
+          'musicResponsiveListItemFlexColumnRenderer',
+          'text',
+          'runs',
+          'text',
+        ]);
+        final artistId = traverse(item, [
+          'musicResponsiveListItemRenderer',
+          'navigationEndpoint',
+          'browseEndpoint',
+          'browseId',
+        ]);
+
+        suggestions.add(
+          Suggestion(
+            type: 'SONG',
+            name: title.isNotEmpty ? title[0].toString() : 'Sem título',
+            artist:
+                title.length > 3
+                    ? title[3].toString()
+                    : 'Desconhecido', // [3]: 'Desconhecido',
+            thumbnails: [Thumb(url: thumb[0].toString())],
+            videoId: videoId[0].toString(),
+            artistId: artistId.toString() ,
+          ),
+        );
+        continue;
+      }
+
+      // Caso seja artista
+      final thumb = traverse(item, [
+        'musicResponsiveListItemRenderer',
+        'thumbnail',
+        'musicThumbnailRenderer',
+        'thumbnail',
+        'url',
+      ]);
+      final name = traverse(item, [
+        'musicResponsiveListItemFlexColumnRenderer',
+        'text',
+        'runs',
+        'text',
+      ]);
+      final artistId = traverse(item, [
+        'musicResponsiveListItemRenderer',
+        'navigationEndpoint',
+        'browseEndpoint',
+        'browseId',
+      ]);
+
+      if (name.isNotEmpty) {
+        suggestions.add(
+          Suggestion(
+            type: 'ARTIST',
+            name: name.toString(),
+            thumbnails: [Thumb(url: thumb[0].toString())],
+            artistId: artistId.toString(),
+          ),
+        );
+      }
     }
 
-    // Verifica se é música
-    final videoId = traverse(item, ['musicResponsiveListItemRenderer', 'navigationEndpoint', 'watchEndpoint', 'videoId']);
-    if (videoId != null && videoId.isNotEmpty) {
-      final thumb = traverse(item, ['musicResponsiveListItemRenderer', 'thumbnail', 'musicThumbnailRenderer', 'thumbnail', 'url']);
-      final title = traverse(item, ['musicResponsiveListItemFlexColumnRenderer', 'text', 'runs', 'text']);
-      final artistId = traverse(item, ['musicResponsiveListItemRenderer', 'navigationEndpoint', 'browseEndpoint', 'browseId']);
-
-      suggestions.add(Suggestion(
-        type: 'SONG',
-        title: title.isNotEmpty ? title[0].toString() : 'Sem título',
-        artist: title.length > 3 ? title[3].toString() : 'Desconhecido', // [3]: 'Desconhecido',
-        thumb: thumb.isNotEmpty ? thumb[0].toString() : '',
-        videoId: videoId[0],
-        artistId: artistId.isNotEmpty ? artistId[0] : '',
-      ));
-      continue;
+    if (suggestions.isEmpty) {
+      return [Suggestion(type: 'TEXT', name: 'Sem resultados')];
     }
 
-    // Caso seja artista
-    final thumb = traverse(item, ['musicResponsiveListItemRenderer', 'thumbnail', 'musicThumbnailRenderer', 'thumbnail', 'url']);
-    final name = traverse(item, ['musicResponsiveListItemFlexColumnRenderer', 'text', 'runs', 'text']);
-    final artistId = traverse(item, ['musicResponsiveListItemRenderer', 'navigationEndpoint', 'browseEndpoint', 'browseId']);
-
-    if (name.isNotEmpty) {
-      print(artistId.toString());
-      suggestions.add(Suggestion(
-        type: 'ARTIST',
-        title: name.toString(),
-        thumb: thumb.isNotEmpty ? thumb[1] : '',
-        artistId: artistId.isNotEmpty ? artistId : '',
-      ));
-    }
+    return suggestions;
   }
 
-  if (suggestions.isEmpty) {
-    return [Suggestion(type: 'TEXT', title: 'Sem resultados')];
-  }
-
-  return suggestions;
-}
-
-Future<List<AlbumDetailed>> getArtistAlbums(String artistId) async {
-    final artistData =
-        await constructRequest("browse", body: {"browseId": artistId});
+  Future<List<AlbumDetailed>> getArtistAlbums(String artistId) async {
+    final artistData = await constructRequest(
+      "browse",
+      body: {"browseId": artistId},
+    );
     final artistAlbumsData =
         traverseList(artistData, ["musicCarouselShelfRenderer"])[0];
-    final browseBody =
-        traverse(artistAlbumsData, ["moreContentButton", "browseEndpoint"]);
+    final browseBody = traverse(artistAlbumsData, [
+      "moreContentButton",
+      "browseEndpoint",
+    ]);
     if (browseBody is List) {
       return [];
     }
@@ -444,22 +614,30 @@ Future<List<AlbumDetailed>> getArtistAlbums(String artistId) async {
               item,
               ArtistBasic(
                 artistId: artistId,
-                name: traverseString(albumsData, ["header", "runs", "text"]) ??
+                name:
+                    traverseString(albumsData, ["header", "runs", "text"]) ??
                     '',
               ),
             ),
           )
-          .where(
-            (album) => album.artist.artistId == artistId,
-          ),
+          .where((album) => album.artist.artistId == artistId),
     ];
   }
 
-Future<void>getArtist(String artistId) async {
-  print(artistId);
-
-
- }
+  Future<ArtistFull> getArtist(String artistId) async {
+    final artistFull = await constructRequest(
+      "browse",
+      body: {"browseId": artistId},
+    );
+    return ArtistParser.parse(artistFull, artistId);
+  }
 }
 
-
+void main() async {
+  final ytService = YTMusicService();
+  await ytService.init(geo: 'BR', lang: 'pt');
+  var p = await ytService.getPlaylist('PLYuj63K2_Kk9_tqA9RbPyJspm0i748Vh1');
+  //var pl = await ytService.getPlaylist('RDCLAK5uy_lZVsxtItENO13UuTujVif5yJTuDnjc1pA');
+  // var w= await ytService.getSongNext('J-4lCvbBysA');
+  print(p.name);
+}

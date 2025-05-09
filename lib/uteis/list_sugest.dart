@@ -2,14 +2,16 @@ import 'package:ytmusicservice/uteis/traverse.dart';
 import 'package:ytmusicservice/uteis/types.dart';
 
 class SongSugest {
-  String title;
-  String artist;
+  String type;
+  String name;
+  Artist artist;
   String videoId;
   List<ThumbnailFull> thumbnails;
   String playlistId;
   String duration;
   SongSugest(
-    this.title,
+    this.type,
+    this.name,
     this.artist,
     this.videoId,
     this.thumbnails,
@@ -39,12 +41,19 @@ class SongSugest {
       'duration': duration,
     };
     return SongSugest(
+      'SONG',
       json['title'],
-      json['artist'],
+      Artist(json['artist']),
       json['videoId'],
       json['thumbnails'],
+
       json['playlistId'],
       json['duration'],
     );
   }
+}
+
+class Artist {
+  String name;
+  Artist(this.name);
 }
