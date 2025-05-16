@@ -176,7 +176,7 @@ class PlaylistFullSongas{
         traverseString(item, ["navigationEndpoint", "playlistId"]) ?? '',
     name: traverse(item, ['content','title' ,'runs','text'])[0].toString() ,
     artist: ArtistBasic(
-      name:traverse(item, ['content','facepile' ,'text','content'])?? '',
+      name:traverse(item, ['content','facepile' ,'text','content']).toString()?? '',
       artistId: traverseString(artist, ["browseId"]),
     ),
     thumbnails: traverseList(item, ["thumbnails"])

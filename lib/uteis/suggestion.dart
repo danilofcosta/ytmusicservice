@@ -1,26 +1,36 @@
-// suggestion.dart
-
+import 'package:ytmusicservice/uteis/list_sugest.dart';
 import 'package:ytmusicservice/uteis/types.dart';
 
+enum SuggestionType {
+  SONG,
+  PLAYLIST,
+  ARTIST,
+  TEXT,
+}
+
 class Suggestion {
-  final String type;
+  final SuggestionType type;
   final String name;
-  final String? artist;
-  final List<Thumb>? thumbnails;
+  final Artist? artist;
+  final String? playlistId;
+  final List<ThumbnailFull>? thumbnails;
   final String? videoId;
-  final String? artistId;
+  final String? album;
+  final String? duration;
 
   Suggestion({
     required this.type,
     required this.name,
     this.artist,
     this.thumbnails,
+    this.playlistId,
     this.videoId,
-    this.artistId,
+    this.album,
+    this.duration,
   });
 
   factory Suggestion.empty() {
-    return Suggestion(type: 'TEXT', name: 'Sem resultados');
+    return Suggestion(type: SuggestionType.TEXT, name: 'Sem resultados');
   }
 
   @override

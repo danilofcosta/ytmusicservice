@@ -24,15 +24,28 @@ class SongParser {
   }
 
   static SongDetailed parseSearchResult(dynamic item) {
+
     final columns = traverseList(item, ["flexColumns", "runs"]);
     // It is not possible to identify the title and author
     final title = columns[0];
     final artist = columns.firstWhere(isArtist, orElse: () => columns[3]);
     final album = columns.firstWhere(isAlbum, orElse: () => null);
-    final duration = columns.firstWhere(
-        (item) => isDuration(item) && item != title,
-        orElse: () => null);
+   // final duration = columns.firstWhere(
+        // (item) => isDuration(item) && item != title,
+        // orElse: () => null);
+final durations = traverseList(item, [
+  'flexColumns',
+  'musicResponsiveListItemFlexColumnRenderer',
+  'text',
+  'runs',
+  'text'
+]);
 
+// Filtra as strings no formato mm:ss (por exemplo, "3:22")
+final duration = durations.firstWhere(
+  (v) => RegExp(r'^\d+:\d+$').hasMatch(v),
+  orElse: () => null,
+);
     return SongDetailed(
       type: "SONG",
       videoId: traverseString(item, ["playlistItemData", "videoId"]) ?? '',
@@ -47,7 +60,9 @@ class SongParser {
               albumId: traverseString(album, ["browseId"]) ?? '',
             )
           : null,
-      duration: Parser.parseDuration(duration?['text']),
+      // duration: Parser.parseDuration(item),
+      duration:  duration
+,
       thumbnails: traverseList(item, ["thumbnails"])
           .map((item) => ThumbnailFull.fromMap(item))
           .toList(),
@@ -91,7 +106,19 @@ class SongParser {
 
     final title = columns.firstWhere(isTitle, orElse: () => null);
     final album = columns.firstWhere(isAlbum, orElse: () => null);
+final durations = traverseList(item, [
+  'flexColumns',
+  'musicResponsiveListItemFlexColumnRenderer',
+  'text',
+  'runs',
+  'text'
+]);
 
+// Filtra as strings no formato mm:ss (por exemplo, "3:22")
+final duration = durations.firstWhere(
+  (v) => RegExp(r'^\d+:\d+$').hasMatch(v),
+  orElse: () => null,
+);
     return SongDetailed(
       type: "SONG",
       videoId: traverseString(item, ["playlistItemData", "videoId"]) ?? '',
@@ -103,7 +130,7 @@ class SongParser {
               albumId: traverseString(album, ["browseId"]) ?? '',
             )
           : null,
-      duration: null,
+      duration: duration,
       thumbnails: traverseList(item, ["thumbnails"])
           .map((item) => ThumbnailFull.fromMap(item))
           .toList(),

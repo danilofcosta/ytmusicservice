@@ -1,3 +1,5 @@
+import 'package:ytmusicservice/uteis/list_sugest.dart';
+
 class ThumbnailFull {
   final String url;
   final int width;
@@ -52,7 +54,7 @@ class SongDetailed {
   final String name;
   final ArtistBasic artist;
   final AlbumBasic? album;
-  final int? duration;
+  final dynamic duration;
   final List<ThumbnailFull> thumbnails;
 
   SongDetailed({
@@ -111,7 +113,7 @@ class VideoDetailed implements SearchResult {
 class ArtistDetailed implements SearchResult {
   final String artistId;
   final String name;
-  @override
+  final Artist? artist;
   final String type;
   final List<ThumbnailFull> thumbnails;
 
@@ -120,12 +122,15 @@ class ArtistDetailed implements SearchResult {
     required this.name,
     required this.type,
     required this.thumbnails,
+     this.artist,
   });
 
   // Construtor nomeado para criar uma ArtistDetailed a partir de um mapa
   ArtistDetailed.fromMap(Map<String, dynamic> map)
       : artistId = map['artistId'] as String,
+     
         name = map['name'] as String,
+        artist=Artist(name: map['name'] as String, id:  map['artistId'] as String),
         type = map['type'] as String,
         thumbnails = (map['thumbnails'] as List)
             .map((item) => ThumbnailFull.fromMap(item))

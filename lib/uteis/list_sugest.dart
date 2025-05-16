@@ -22,6 +22,7 @@ class SongSugest {
   factory SongSugest.fromJson(Map<String, dynamic> data) {
     var nome = traverse(data, ['title', 'runs', 'text'])[0];
     var artista = traverse(data, ['longBylineText', 'runs', 'text'])[0];
+    final artistid = traverseString(data, ['longBylineText', 'runs', 'navigationEndpoint','browseEndpoint','browseId']) ?? 'Unknown';
     var videoId =
         traverse(data, ['navigationEndpoint', 'watchEndpoint', 'videoId'])[0];
     var playlistId = traverse(data, ['navigationEndpoint', 'playlistId'])[0];
@@ -35,6 +36,7 @@ class SongSugest {
     var json = {
       'title': nome,
       'artist': artista,
+      'artistId': artistid,
       'videoId': videoId,
       'thumbnails': thumbnails,
       'playlistId': playlistId,
@@ -43,7 +45,7 @@ class SongSugest {
     return SongSugest(
       'SONG',
       json['title'],
-      Artist(json['artist']),
+      Artist(name: json['artist'], id: json['artistId']),
       json['videoId'],
       json['thumbnails'],
 
@@ -54,6 +56,8 @@ class SongSugest {
 }
 
 class Artist {
-  String name;
-  Artist(this.name);
+  final String? name;
+  final String? id;
+
+  Artist({this.name, this.id});
 }

@@ -98,6 +98,7 @@ class ArtistParser {
       type: "ARTIST",
       artistId: traverseString(item, ["browseId"]) ?? '',
       name: traverseString(item, ["runs", "text"]) ?? '',
+
       thumbnails: traverseList(item, ["thumbnails"])
           .map((item) => ThumbnailFull.fromMap(item))
           .toList(),
