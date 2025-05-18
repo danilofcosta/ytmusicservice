@@ -6,6 +6,7 @@ enum SuggestionType {
   PLAYLIST,
   ARTIST,
   TEXT,
+  ALBUM
 }
 
 class Suggestion {
@@ -17,6 +18,7 @@ class Suggestion {
   final String? videoId;
   final String? album;
   final String? duration;
+  final String? albumId;
 
   Suggestion({
     required this.type,
@@ -27,6 +29,7 @@ class Suggestion {
     this.videoId,
     this.album,
     this.duration,
+    this.albumId,
   });
 
   factory Suggestion.empty() {
