@@ -10,9 +10,6 @@ import 'package:ytmusicservice/uteis/suggestion.dart';
 import 'package:ytmusicservice/uteis/traverse.dart';
 import 'package:ytmusicservice/uteis/types.dart';
 import 'package:ytmusicservice/uteis/song_parser.dart';
-
-//import 'package:youtube_explode_dart/youtube_explode_dart.dart';
-
 class YTMusicService {
   static final YTMusicService _instance = YTMusicService._internal();
 
@@ -728,17 +725,3 @@ class YTMusicService {
   }
 }
 
-void main() async {
-  final ytService = YTMusicService();
-  await ytService.init(geo: 'BR', lang: 'pt');
-  // var p = await ytService.getPlaylist('PLgaFNC_I_ZknpTh8GFcNQoEAPj0JODW0N');
-  //var pl = await ytService.getPlaylist('RDCLAK5uy_lZVsxtItENO13UuTujVif5yJTuDnjc1pA');
-  //var w = await ytService.getSongNext(videoId: 'J-4lCvbBysA');
-  var w = await ytService.getSearchSuggestions('1982');
-
-  for (var s in w) {
-    print(s.name);
-    print(s.albumId);
-  }
-  print(w);
-}
