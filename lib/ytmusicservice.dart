@@ -1,6 +1,6 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:ytmusicservice/youtube_explore.dart';
+import 'package:ytmusicservice/youtube_explore.dart'; // instancia de youtube_explore
 import 'package:ytmusicservice/uteis/album_parse.dart';
 import 'package:ytmusicservice/uteis/artist_parse.dart';
 import 'package:ytmusicservice/uteis/list_sugest.dart';
@@ -9,7 +9,7 @@ import 'package:ytmusicservice/uteis/search_parser.dart';
 import 'package:ytmusicservice/uteis/suggestion.dart';
 import 'package:ytmusicservice/uteis/traverse.dart';
 import 'package:ytmusicservice/uteis/types.dart';
-import 'package:ytmusicservice/uteis/song_parser.dart';
+import 'package:ytmusicservice/uteis/song_parser.dart'; 
 class YTMusicService {
   static final YTMusicService _instance = YTMusicService._internal();
 

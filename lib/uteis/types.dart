@@ -114,6 +114,7 @@ class ArtistDetailed implements SearchResult {
   final String artistId;
   final String name;
   final Artist? artist;
+  @override
   final String type;
   final List<ThumbnailFull> thumbnails;
 
