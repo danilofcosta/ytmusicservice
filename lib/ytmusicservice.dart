@@ -1,5 +1,6 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
+import 'package:ytmusicservice/uteis/parser.dart';
 import 'package:ytmusicservice/youtube_explore.dart'; // instancia de youtube_explore
 import 'package:ytmusicservice/uteis/album_parse.dart';
 import 'package:ytmusicservice/uteis/artist_parse.dart';
@@ -240,14 +241,7 @@ class YTMusicService {
     }
   }
 
-  Future<dynamic> obeterCookie({
-    String url = "https://www.youtube.com/",
-  }) async {
-    final uri = Uri.parse(url);
-    return await cookieJar.loadForRequest(uri);
-  }
-
-  //------------------------------------------------------------------------------------------------
+  
   Future<List<SearchResult>> searchplaylist(String query) async {
     final searchData = await constructRequest(
       "search",
@@ -260,6 +254,15 @@ class YTMusicService {
         .cast<SearchResult>()
         .toList();
   }
+
+  Future<dynamic> obeterCookie({
+    String url = "https://www.youtube.com/",
+  }) async {
+    final uri = Uri.parse(url);
+    return await cookieJar.loadForRequest(uri);
+  }
+
+  //------------------------------------------------------------------------------------------------
 
   Future<PlaylistFullSongas> getPlaylist(String playlistId) async {
     if (playlistId.startsWith("PL") || playlistId.startsWith("RD")) {
@@ -722,6 +725,23 @@ class YTMusicService {
       body: {"browseId": artistId},
     );
     return ArtistParser.parse(artistFull, artistId);
+  }
+
+  Future<List<HomeSection>> getHomeSections() async {
+    final data =
+        await constructRequest("browse", body: {"browseId": 'FEmusic_home'});
+
+    final sections = traverseList(data, ["sectionListRenderer", "contents"]);
+    dynamic continuation = traverseString(data, ["continuation"]);
+    while (continuation != null) {
+      final data = await constructRequest("browse",
+          query: {"continuation": continuation});
+      sections
+          .addAll(traverseList(data, ["sectionListContinuation", "contents"]));
+      continuation = traverseString(data, ["continuation"]);
+    }
+
+    return sections.map(Parser.parseHomeSection).toList();
   }
 }
 
