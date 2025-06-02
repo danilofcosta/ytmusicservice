@@ -10,7 +10,8 @@ import 'package:ytmusicservice/uteis/search_parser.dart';
 import 'package:ytmusicservice/uteis/suggestion.dart';
 import 'package:ytmusicservice/uteis/traverse.dart';
 import 'package:ytmusicservice/uteis/types.dart';
-import 'package:ytmusicservice/uteis/song_parser.dart'; 
+import 'package:ytmusicservice/uteis/song_parser.dart';
+
 class YTMusicService {
   static final YTMusicService _instance = YTMusicService._internal();
 
@@ -241,7 +242,7 @@ class YTMusicService {
     }
   }
 
-  
+
   Future<List<SearchResult>> searchplaylist(String query) async {
     final searchData = await constructRequest(
       "search",
@@ -459,18 +460,23 @@ class YTMusicService {
     return album..songs = [...filteredSongs, ...songsThatArentInArtist];
   }
 
-  Future<SongFull> getSong(String videoId) async {
+  Future<SongFull> getSong(String videoId,{ bool allinfos =true}) async {
+    var audios;
     if (!RegExp(r"^[a-zA-Z0-9-_]{11}$").hasMatch(videoId)) {
       throw Exception("Invalid videoId");
     }
 
     final data = await constructRequest("player", body: {"videoId": videoId});
 
-    final manifest = await youtubeExplodexInstance.videos.streams.getManifest(
+  if (allinfos == true)  {final manifest = await youtubeExplodexInstance.videos.streams.getManifest(
       videoId,
       requireWatchPage: false,
     );
-    final audios = manifest.audioOnly;
+     audios = manifest.audioOnly;} 
+    
+    else {
+       audios = null;
+    }
     //final audios = null;
 
     final song = SongParser.parse(data, adaptiveFormats: audios);
@@ -523,8 +529,7 @@ class YTMusicService {
           'runs',
         ]);
 
-        String? artistName =
-            artistRuns.length > 2 ? artistRuns[2]['text'] : null;
+        String? artistName = artistRuns.length > 2 ? artistRuns[2]['text'] : null;
 
         String? artistId = traverseString(itemData[1], [
           'musicResponsiveListItemFlexColumnRenderer',
@@ -542,6 +547,7 @@ class YTMusicService {
           'thumbnail',
           'thumbnails',
         ]);
+
 
         suggestions.add(
           Suggestion(
@@ -727,21 +733,55 @@ class YTMusicService {
     return ArtistParser.parse(artistFull, artistId);
   }
 
+  Future<String?> getLyrics(String videoId) async {
+    try {
+      if (!RegExp(r"^[a-zA-Z0-9-_]{11}$").hasMatch(videoId)) {
+        throw Exception("Invalid videoId");
+      }
+
+      final data = await constructRequest("next", body: {"videoId": videoId});
+      final browseId = traverse(
+        traverseList(data, ["tabs", "tabRenderer"])[1],
+        ["browseId"],
+      );
+
+      final lyricsData = await constructRequest(
+        "browse",
+        body: {"browseId": browseId},
+      );
+      final lyrics =
+          traverseString(lyricsData, ["description", "runs", "text"])?.trim();
+
+      return lyrics
+          ?.replaceAll("\r", "")
+          .split("\n")
+          .where((element) => element.isNotEmpty)
+          .join("\n");
+    } catch (e) {
+      print(e);
+      return 'Letra nao encontrada';
+    }
+  }
+
   Future<List<HomeSection>> getHomeSections() async {
-    final data =
-        await constructRequest("browse", body: {"browseId": 'FEmusic_home'});
+    final data = await constructRequest(
+      "browse",
+      body: {"browseId": 'FEmusic_home'},
+    );
 
     final sections = traverseList(data, ["sectionListRenderer", "contents"]);
     dynamic continuation = traverseString(data, ["continuation"]);
     while (continuation != null) {
-      final data = await constructRequest("browse",
-          query: {"continuation": continuation});
-      sections
-          .addAll(traverseList(data, ["sectionListContinuation", "contents"]));
+      final data = await constructRequest(
+        "browse",
+        query: {"continuation": continuation},
+      );
+      sections.addAll(
+        traverseList(data, ["sectionListContinuation", "contents"]),
+      );
       continuation = traverseString(data, ["continuation"]);
     }
 
     return sections.map(Parser.parseHomeSection).toList();
   }
 }
-
