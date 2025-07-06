@@ -13,13 +13,14 @@ import 'package:ytmusicservice/uteis/types.dart';
 import 'package:ytmusicservice/uteis/song_parser.dart';
 
 class YTMusicService {
-  static final YTMusicService _instance = YTMusicService._internal();
+  // Remova a instância estática e o construtor factory.
+  // static final YTMusicService _instance = YTMusicService._internal();
+  // factory YTMusicService() {
+  //   return _instance;
+  // }
 
-  factory YTMusicService() {
-    return _instance;
-  }
-
-  YTMusicService._internal() {
+  // Altere o construtor para público, ou seja, remova o underscore.
+  YTMusicService() {
     cookieJar = CookieJar();
     youtubeExplodexInstance = youtubeExplodex;
     config = {};
@@ -80,9 +81,10 @@ class YTMusicService {
     String? lang,
   }) async {
     print('init class');
-    if (hasInitialized) {
-      return this;
-    }
+    // A remoção da verificação `hasInitialized` é importante para permitir múltiplas inicializações.
+    // if (hasInitialized) {
+    //   return this;
+    // }
     if (cookies != null) {
       for (final cookieString in cookies.split("; ")) {
         final cookie = Cookie.fromSetCookieValue(cookieString);
@@ -97,7 +99,7 @@ class YTMusicService {
     if (geo != null) config['GL'] = geo;
     if (lang != null) config['HL'] = lang;
 
-    hasInitialized = true;
+    hasInitialized = true; // Você pode manter isso para controle interno da instância.
 
     return this;
   }
@@ -241,7 +243,6 @@ class YTMusicService {
       );
     }
   }
-
 
   Future<List<SearchResult>> searchplaylist(String query) async {
     final searchData = await constructRequest(
@@ -468,14 +469,14 @@ class YTMusicService {
 
     final data = await constructRequest("player", body: {"videoId": videoId});
 
-  if (allinfos == true)  {final manifest = await youtubeExplodexInstance.videos.streams.getManifest(
+  if (allinfos == true)   {final manifest = await youtubeExplodexInstance.videos.streams.getManifest(
       videoId,
       requireWatchPage: false,
     );
-     audios = manifest.audioOnly;} 
+      audios = manifest.audioOnly;} 
     
     else {
-       audios = null;
+        audios = null;
     }
     //final audios = null;
 
